@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Rock or Not</title>
+	<script src="https://unpkg.com/isotope-layout@3/dist/isotope.pkgd.min.js"></script>
+	<script type="text/javascript">
+		
+	</script>
+</head>
+<body>
+	<h1>Welcome to the standings page</h1>
+	<div class="container">
+		<div class="row">
+			<div class="col-sm-12">
+				<h3><%=band.title%></h3>
+				<div class="col-sm-6">
+					<img src="/images/<%= band.imageUrl %>">
+				</div>
+				<div class="col-sm-3">
+					<img src="/images/thumbsUp.png">
+					<%=band.upVotes%>
+				</div>
+				<div class="col-sm-3">
+					<img src="/images/thumbsDown.png">
+					<%=band.downVotes%>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

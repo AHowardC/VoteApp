@@ -201,4 +201,28 @@ router.get('/vote/:direction/:bandId', (req, res)=>{
 	});
 });
 
+router.get('/standings',(req,res)=>{
+	const standingsQuery = `SELECT bands.title,bands.imageUrl,votes FROM`
+	connection.query(standingsQuery,(error,results)=>{
+		if (error) {
+			throw error
+		}else{
+			res.render('standings',{
+				standingsResults:results
+			})
+		}
+	})
+})
+
+
 module.exports = router;
+
+
+
+
+
+
+
+
+
+
