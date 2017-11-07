@@ -1,11 +1,24 @@
 var express = require('express');
 var router = express.Router();
+
+// We need fs so we can read our multer file
+var fs = require('fs');
 // Include the mysql module so express can query the DB
 var mysql = require('mysql');
 // Include our custom config module so we have sensitive data available
 var config = require('../config/config');
 // include bcrpyt so we can hash the user's passwords safely 
 var bcrypt = require('bcrypt-nodejs');
+
+// include the multer module so we can get the file from the form
+var multer = require('multer');
+// Part 2 of Multer, is to tell Multer where to save the files it gets
+var uploadDir = multer({
+	dest: 'public/images'
+});
+// part 3 specify the name of the file input to accept 
+// why? because we dont trust the scary interet
+var nameOfFileField = uploadDir.single('imageToUpload');
 
 var connection = mysql.createConnection(config.db);
 connection.connect((error)=>{
@@ -78,23 +91,34 @@ router.get('/', function(req, res, next) {
 			if(error){
 				reject(error)
 			}else{
-				var rand = Math.floor(Math.random() * results.length);	
-				resolve(results[rand]);
-				// resolve({
-				// 	rand: rand,
-				// 	band: results[rand]
-				// })
+				if(results.length == 0){
+					// user is out of options. Let them know.
+					resolve("done");
+				}else{
+					var rand = Math.floor(Math.random() * results.length);	
+					resolve(results[rand]);
+					// resolve({
+					// 	rand: rand,
+					// 	band: results[rand]
+					// })					
+				}
+
 			}
 		});
 	});
 
 	getBands.then(function(bandObj){
-		console.log(bandObj);
-		res.render('index', { 
-			name: req.session.name,
-			band: bandObj,
-			loggedIn: true
-		});		
+		if(bandObj === "done"){
+			// out of bands.
+			res.redirect('/standings?msg=finished')
+		}else{
+			console.log(bandObj);
+			res.render('index', { 
+				name: req.session.name,
+				band: bandObj,
+				loggedIn: true
+			});
+		}
 	});
 	getBands.catch((error)=>{
 		res.json(error);
@@ -186,6 +210,12 @@ router.post('/loginProcess', (req, res, next)=>{
 	})
 });
 
+router.get('/logout',(req, res)=>{
+	req.session.destroy();
+	res.redirect('/login');
+})
+
+
 router.get('/vote/:direction/:bandId', (req, res)=>{
 	// res.json(req.params);
 	var bandId = req.params.bandId;
@@ -201,28 +231,68 @@ router.get('/vote/:direction/:bandId', (req, res)=>{
 	});
 });
 
-router.get('/standings',(req,res)=>{
-	const standingsQuery = `SELECT bands.title,bands.imageUrl,votes FROM`
-	connection.query(standingsQuery,(error,results)=>{
-		if (error) {
-			throw error
+router.get('/standings',(req, res)=>{
+	const standingsQuery = `
+		SELECT bands.title,bands.imageUrl,votes.imageID, SUM(IF(voteDirection='up',1,0)) as upVotes, SUM(IF(voteDirection='down',1,0)) as downVotes, SUM(IF(voteDirection='up',2,-1)) as total FROM votes
+			INNER JOIN bands on votes.imageID = bands.id
+			GROUP BY imageID ORDER BY total desc;	
+	`;
+
+	// const giveMeAllTheDataAndIWillFigureItOut = `
+	// 	SELECT * FROM votes
+	// 		INNER JOIN bands on votes.imageID = bands.id
+	// `
+
+	connection.query(standingsQuery,(error, results)=>{
+		results.map((band,i)=>{
+			if(band.upVotes / (band.upVotes + band.downVotes)>.8 ){
+				results[i].cls = "top-rated best";
+			}else if(band.upVotes / (band.upVotes + band.downVotes) <= .5 ){
+				results[i].cls = "worst-rated";
+			}else{
+				results[i].cls = "middle";
+			}
+		});
+		if(error){
+			throw error;
 		}else{
 			res.render('standings',{
-				standingsResults:results
-			})
+				standingsResults: results
+			});
 		}
-	})
-})
+	});
+});
 
+router.get('/uploadBand',(req, res)=>{
+	res.render('upload')
+});
+
+router.post('/formSubmit', nameOfFileField, (req, res)=>{
+	console.log(req.file);
+	console.log(req.body);
+	var tmpPath = req.file.path;
+	var targetPath = `public/images/${req.file.originalname}`;
+	fs.readFile(tmpPath,(error, fileContents)=>{
+		if(error){
+			throw error;
+		}
+		fs.writeFile(targetPath,fileContents,(error)=>{
+			if (error){
+				throw error;
+			}
+			var insertQuery = `
+				INSERT INTO bands (imageUrl, title) 
+					VALUES
+					(?,?);`
+			connection.query(insertQuery,[req.file.originalname,req.body.bandName],(dbError,results)=>{
+				if(dbError){
+					throw dbError;
+				}
+				res.redirect('/')
+			})
+		})
+	});
+	// res.json(req.body);
+});
 
 module.exports = router;
-
-
-
-
-
-
-
-
-
-
