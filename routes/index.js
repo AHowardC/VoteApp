@@ -220,9 +220,9 @@ router.get('/vote/:direction/:bandId', (req, res)=>{
 	// res.json(req.params);
 	var bandId = req.params.bandId;
 	var direction = req.params.direction;
-	var insertVoteQuery = `INSERT INTO votes (ImageID, voteDirection, userID) VALUES (?,?,?);`;
+	var insertVoteQuery = `INSERT INTO votes (ImageID, voteDirection, userID, ip_address) VALUES (?,?,?,?);`;
 	console.log(req.session);
-	connection.query(insertVoteQuery,[bandId, direction,req.session.uid],(error, results)=>{
+	connection.query(insertVoteQuery,[bandId, direction,req.session.uid, req.ip],(error, results)=>{
 		if (error){
 			throw error;
 		}else{
@@ -294,5 +294,57 @@ router.post('/formSubmit', nameOfFileField, (req, res)=>{
 	});
 	// res.json(req.body);
 });
+
+
+router.get('/users', (req, res, next)=>{
+	if(req.session.name === undefined){
+		// goodbye.
+		res.redirect('/login');
+	}else{
+		var name = req.session.name;
+		var email = req.session.email;
+		res.render('users',{
+			name: name,
+			email: email
+		});
+	}
+});
+
+router.post('/userProcess',(req,res,next)=>{
+	var name = req.body.name;
+	var email = req.body.email;
+	var password = req.body.password;
+
+	if ((email == "") || (name == "")){
+		res.redirect('/users?msg=emptyEmail');
+		return;
+	}
+
+	// var selectQuery = `Check if email is already in DB.`
+
+	if(password == ""){
+		var updateQuery = `UPDATE users SET 
+			name = ?, 
+			email = ? 
+			WHERE id = ?;`;
+		var queryParams = [name,email,req.session.uid];
+	}else{
+		var updateQuery = `UPDATE users SET 
+			name = ?, 
+			email = ?,
+			password = ?
+			WHERE id = ?;`;
+		var hash = bcrypt.hashSync(password);
+		var queryParams = [name,email,hash,req.session.uid];
+	}
+	connection.query(updateQuery,queryParams,(error, results)=>{
+		if(error){
+			throw error;
+		}
+		res.redirect('/')
+	})
+
+});
+
 
 module.exports = router;
