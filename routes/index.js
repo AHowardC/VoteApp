@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+
 // We need fs so we can read our multer file
 var fs = require('fs');
 // Include the mysql module so express can query the DB
@@ -8,6 +9,7 @@ var mysql = require('mysql');
 var config = require('../config/config');
 // include bcrpyt so we can hash the user's passwords safely 
 var bcrypt = require('bcrypt-nodejs');
+
 // include the multer module so we can get the file from the form
 var multer = require('multer');
 // Part 2 of Multer, is to tell Multer where to save the files it gets
